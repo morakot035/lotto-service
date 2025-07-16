@@ -4,7 +4,7 @@ import helmet from 'helmet';
 import { config } from 'dotenv';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
-import buyerRoutes from './src/routes/buyer.routes.js';
+import buyerRoutes from './routes/buyer.routes.js';
 
 config();
 connectDB();
