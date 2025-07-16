@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import { config } from 'dotenv';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
+import buyerRoutes from './src/routes/buyer.routes.js';
 
 config();
 connectDB();
@@ -21,6 +22,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/auth', authRoutes);
+app.use('/api/buyers', buyerRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
