@@ -4,40 +4,55 @@ import dayjs from "dayjs";
 
 const router = express.Router();
 
-
 router.post("/result", async (req, res) => {
   try {
-    let { date, month, year } = req.body;
+    // ✅ หาวันที่งวดล่าสุด (1 หรือ 16)
+    const now = dayjs();
+    const day = now.date();
 
-    // ✅ ถ้าไม่มี date ให้หา date ล่าสุดงวด 1 หรือ 16
-    if (!date || !month || !year) {
-      const now = dayjs(); // วันนี้
-      const day = now.date();
+    const date = day >= 17 ? "16" : "01"; // ถ้าเลย 16 ให้ใช้ 16
+    const month = now.format("MM");
+    const year = now.format("YYYY");
 
-      // กำหนดเป็นงวดล่าสุด (ถ้าวันที่ยังไม่ถึง 16 จะใช้ 1, ถ้าเกิน 16 ใช้ 16)
-      if (day >= 17) {
-        date = "16";
-      } else {
-        date = "01";
+    // ✅ เรียก API GLO
+    const response = await axios.post(
+      "https://www.glo.or.th/api/checking/getLotteryResult",
+      { date, month, year },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
+    );
 
-      month = now.format("MM");
-      year = now.format("YYYY");
-    }
-
-    const response = await axios.post("https://www.glo.or.th/api/checking/getLotteryResult", {
-      date,
-      month,
-      year,
-    });
-
-    if (response.data?.status === "success") {
-      res.status(200).json({ success: true, data: response.data.result });
+    // ✅ ตรวจสอบผล
+    if (response.data?.status === true) {
+      const first = response.data.response.result.data.first.number[0].value;
+      const last2 = response.data.response.result.data.last2.number[0].value;
+      const last3f = response.data.response.result.data.last3f.number;
+      const last3b = response.data.response.result.data.last3b.number;
+      res.status(200).json({
+        success: true,
+        date: { date, month, year },
+        data: {
+          firstPrize: first,
+          lastTwoDigits: last2,
+          threeDigitFront: last3f,
+          threeDigitBack: last3b,
+        },
+      });
     } else {
-      res.status(404).json({ success: false, message: "ไม่พบข้อมูลผลสลากกินแบ่ง" });
+      res.status(404).json({
+        success: false,
+        message: "ไม่พบข้อมูลผลสลากกินแบ่ง",
+      });
     }
   } catch (error) {
-    console.error("API Error:", error.message);
-    res.status(500).json({ success: false, message: "เกิดข้อผิดพลาดในการดึงข้อมูลหวย" });
+    res.status(500).json({
+      success: false,
+      message: "เกิดข้อผิดพลาดในการดึงข้อมูลหวย",
+    });
   }
 });
+
+export default router;
