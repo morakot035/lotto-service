@@ -4,20 +4,47 @@ import axios from "axios";
 const router = express.Router();
 
 // POST /api/lottery/result
-router.post("/result", async (req, res) => {
-  const { date, month, year } = req.body;
-
+router.post("/result", async (_req, res) => {
   try {
-    const response = await axios.post("https://www.glo.or.th/api/checking/getLotteryResult", {
-      date,
-      month,
-      year,
-    });
+    const now = new Date();
+
+    let date = 1;
+    let month = now.getMonth() + 1; // เดือนเป็น 0-based
+    let year = now.getFullYear();
+
+    const day = now.getDate();
+
+    if (day >= 16) {
+      date = 16;
+    } else if (day >= 1) {
+      date = 1;
+    }
+
+    // ถ้าเป็นวันที่ 1 แต่ก่อนเวลา 15:00 ยังไม่ประกาศ ให้ใช้รอบ 16 ของเดือนก่อนหน้า
+    if (date === 1 && day === 1 && now.getHours() < 15) {
+      date = 16;
+      month -= 1;
+      if (month < 1) {
+        month = 12;
+        year -= 1;
+      }
+    }
+
+    if (date === 16 && day === 16 && now.getHours() < 15) {
+      // ถ้าวันนี้ 16 แต่มายังไม่ถึงเวลาออกรางวัล ให้ใช้วันที่ 1 แทน
+      date = 1;
+    }
+
+    const payload = {
+      date: date.toString().padStart(2, "0"),
+      month: month.toString().padStart(2, "0"),
+      year: year.toString(),
+    };
+
+    const response = await axios.post("https://www.glo.or.th/api/checking/getLotteryResult", payload);
 
     if (response.data && response.data.status === "success") {
       const result = response.data.result;
-
-      // ✅ แปลงให้อยู่ในรูปแบบที่ต้องการ
       const formattedResult = {
         firstPrize: result["รางวัลที่ 1"]?.[0] || "",
         lastTwoDigits: result["เลขท้าย 2 ตัว"]?.[0] || "",
