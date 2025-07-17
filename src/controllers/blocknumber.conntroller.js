@@ -1,4 +1,4 @@
-import BlockNumber from '../models/BlockNumber'
+import BlockNumber from '../models/BlockNumber.js'
 import { sendErrorResponse } from '../utils/sendError.js';
 
 // ✅ GET /api/getBlockNumber
