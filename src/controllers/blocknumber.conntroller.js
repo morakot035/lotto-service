@@ -15,7 +15,7 @@ export const getBlockNumber = async (req, res) => {
 export const createBlockNumber = async (req, res) => {
   try {
     const { number } = req.body;
-    const newBlock = new Buyer({ number });
+    const newBlock = new BlockNumber({ number });
     await newBlock.save();
     res.status(201).json({ success: true, data: newBlock });
   } catch (error) {
