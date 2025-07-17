@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { connectDB } from './config/db.js';
 import authRoutes from './routes/auth.routes.js';
 import buyerRoutes from './routes/buyer.routes.js';
+import blockRoutes from './routes/blocknumber.routes.js';
 
 config();
 connectDB();
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/buyers', buyerRoutes);
+app.use('/api/blocknumber', blockRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
