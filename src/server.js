@@ -8,6 +8,7 @@ import buyerRoutes from "./routes/buyer.routes.js";
 import blockRoutes from "./routes/blocknumber.routes.js";
 import lotteryRoutes from "./routes/lottery.routes.js";
 import entryRoutes from "./routes/entry.routes.js";
+import cutConfigRoutes from "./routes/cutConfig.routes";
 
 config();
 connectDB();
@@ -31,6 +32,7 @@ app.use("/api/buyers", buyerRoutes);
 app.use("/api/blocknumber", blockRoutes);
 app.use("/api/lottery", lotteryRoutes);
 app.use("/api/entry", entryRoutes);
+app.use("/api", cutConfigRoutes);
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
