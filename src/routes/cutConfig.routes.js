@@ -2,7 +2,7 @@ import express from "express";
 import {
   saveCutConfig,
   getCutConfig,
-} from "../controllers/cutConfig.controller";
+} from "../controllers/cutConfig.controller.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 
 const router = express.Router();
