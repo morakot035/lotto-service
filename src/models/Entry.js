@@ -7,6 +7,7 @@ const EntrySchema = new mongoose.Schema(
     top: { type: String, default: "" },
     tod: { type: String, default: "" },
     bottom2: { type: String, default: "" },
+    createdAtThai: { type: String },
   },
   {
     timestamps: true,

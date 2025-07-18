@@ -10,21 +10,22 @@ exports.createLottery = async (req, res) => {
     }
 
     const lottery = new Entry({ buyerName, number, top, tod, bottom2 });
-    await lottery.save();
 
-    const createdAtThai = formatThaiDatetime(lottery.createdAt); // ✅ แปลงเวลา
+    // ให้ lottery มี createdAt ก่อนจะใช้ format ได้
+    await lottery.validate(); // เพื่อให้ lottery.createdAt ถูก gen ขึ้น
+    lottery.createdAtThai = formatThaiDatetime(new Date()); // หรือ lottery.createdAt หลัง validate
+
+    await lottery.save();
 
     res.status(201).json({
       message: "บันทึกข้อมูลสำเร็จ",
       data: lottery,
-      createdAtThai, // ✅ เพิ่มเวลาไทยไปใน response
     });
   } catch (err) {
     console.error(err);
     sendError(res, "ไม่สามารถบันทึกข้อมูลหวยได้");
   }
 };
-
 function formatThaiDatetime(date) {
   const days = [
     "อาทิตย์",
