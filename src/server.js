@@ -8,7 +8,7 @@ import buyerRoutes from "./routes/buyer.routes.js";
 import blockRoutes from "./routes/blocknumber.routes.js";
 import lotteryRoutes from "./routes/lottery.routes.js";
 import entryRoutes from "./routes/entry.routes.js";
-import cutConfigRoutes from "./routes/cutConfig.routes";
+import cutConfigRoutes from "./routes/cutConfig.routes.js";
 
 config();
 connectDB();
