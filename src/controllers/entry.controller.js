@@ -4,116 +4,123 @@ const sendError = require("../utils/sendError");
 
 exports.createLottery = async (req, res) => {
   try {
-    const { buyerName, number, top, tod, bottom } = req.body;
-
-    if (!buyerName || !number) {
-      return sendError(res, "กรุณาระบุชื่อผู้ซื้อและเลข");
+    const entries = req.body;
+    if (!Array.isArray(entries)) {
+      return sendError(res, "ข้อมูลที่ส่งมาไม่ถูกต้อง");
     }
 
-    const numLength = number.trim().length;
-    const topAmount = parseFloat(top || "0");
-    const todAmount = parseFloat(tod || "0");
-    const bottomAmount = parseFloat(bottom || "0");
-
-    // ✅ ดึง config ล่าสุด
     const latestConfig = await CutConfig.findOne().sort({ createdAt: -1 });
-    const limitTop =
-      numLength === 3
-        ? parseFloat(latestConfig?.threeDigitTop || "0")
-        : parseFloat(latestConfig?.twoDigitTop || "0");
 
-    const limitTod =
-      numLength === 3 ? parseFloat(latestConfig?.threeDigitTod || "0") : 0;
+    const results = [];
 
-    const limitBottom =
-      numLength === 3
-        ? parseFloat(latestConfig?.threeDigitBottom || "0")
-        : parseFloat(latestConfig?.twoDigitBottom || "0");
+    for (const item of entries) {
+      const { buyerName, number, top, tod, bottom } = item;
+      if (!buyerName || !number) continue;
 
-    const calcKeepSent = (amount, limit) => {
-      const kept = Math.min(amount, limit);
-      const sent = Math.max(amount - limit, 0);
-      return {
-        total: amount.toString(),
-        kept: kept.toString(),
-        sent: sent.toString(),
+      const numLength = number.trim().length;
+      const topAmount = parseFloat(top || "0");
+      const todAmount = parseFloat(tod || "0");
+      const bottomAmount = parseFloat(bottom || "0");
+
+      const limitTop =
+        numLength === 3
+          ? parseFloat(latestConfig?.threeDigitTop || "0")
+          : parseFloat(latestConfig?.twoDigitTop || "0");
+
+      const limitTod =
+        numLength === 3 ? parseFloat(latestConfig?.threeDigitTod || "0") : 0;
+
+      const limitBottom =
+        numLength === 3
+          ? parseFloat(latestConfig?.threeDigitBottom || "0")
+          : parseFloat(latestConfig?.twoDigitBottom || "0");
+
+      const calcKeepSent = (amount, limit) => {
+        const kept = Math.min(amount, limit);
+        const sent = Math.max(amount - limit, 0);
+        return {
+          total: amount.toString(),
+          kept: kept.toString(),
+          sent: sent.toString(),
+        };
       };
-    };
 
-    const entryFields = {
-      buyerName,
-      number,
-      source: "self",
-    };
+      const entryFields = {
+        buyerName,
+        number,
+        source: "self",
+      };
 
-    if (topAmount > 0) {
-      entryFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
-        topAmount,
-        limitTop
-      );
-    }
+      if (topAmount > 0) {
+        entryFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
+          topAmount,
+          limitTop
+        );
+      }
 
-    if (todAmount > 0 && numLength === 3) {
-      entryFields["tod"] = calcKeepSent(todAmount, limitTod);
-    }
+      if (todAmount > 0 && numLength === 3) {
+        entryFields["tod"] = calcKeepSent(todAmount, limitTod);
+      }
 
-    if (bottomAmount > 0) {
-      entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
-        bottomAmount,
-        limitBottom
-      );
-    }
+      if (bottomAmount > 0) {
+        entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
+          bottomAmount,
+          limitBottom
+        );
+      }
 
-    const selfEntry = new Entry({
-      ...entryFields,
-      createdAtThai: formatThaiDatetime(new Date()),
-    });
-    await selfEntry.save();
-
-    // ตรวจสอบว่าส่งเจ้ามือหรือไม่
-    const dealerFields = {
-      buyerName,
-      number,
-      source: "dealer",
-    };
-
-    const hasDealer = [];
-
-    if (topAmount > limitTop) {
-      dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
-        topAmount,
-        limitTop
-      );
-      hasDealer.push(true);
-    }
-    if (todAmount > limitTod && numLength === 3) {
-      dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
-      hasDealer.push(true);
-    }
-    if (bottomAmount > limitBottom) {
-      dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
-        bottomAmount,
-        limitBottom
-      );
-      hasDealer.push(true);
-    }
-
-    let dealerEntry = null;
-    if (hasDealer.length > 0) {
-      dealerEntry = new Entry({
-        ...dealerFields,
+      const selfEntry = new Entry({
+        ...entryFields,
         createdAtThai: formatThaiDatetime(new Date()),
       });
-      await dealerEntry.save();
+      await selfEntry.save();
+
+      const dealerFields = {
+        buyerName,
+        number,
+        source: "dealer",
+      };
+
+      const hasDealer = [];
+
+      if (topAmount > limitTop) {
+        dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
+          topAmount,
+          limitTop
+        );
+        hasDealer.push(true);
+      }
+      if (todAmount > limitTod && numLength === 3) {
+        dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
+        hasDealer.push(true);
+      }
+      if (bottomAmount > limitBottom) {
+        dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
+          bottomAmount,
+          limitBottom
+        );
+        hasDealer.push(true);
+      }
+
+      let dealerEntry = null;
+      if (hasDealer.length > 0) {
+        dealerEntry = new Entry({
+          ...dealerFields,
+          createdAtThai: formatThaiDatetime(new Date()),
+        });
+        await dealerEntry.save();
+      }
+
+      results.push({
+        self: selfEntry,
+        dealer: dealerEntry,
+        createdAtThai: selfEntry.createdAtThai,
+      });
     }
 
     res.status(201).json({
       message: "บันทึกข้อมูลสำเร็จ",
-      data: {
-        self: selfEntry,
-        dealer: dealerEntry,
-      },
-      createdAtThai: selfEntry.createdAtThai,
+      data: results,
     });
   } catch (err) {
     console.error(err);
