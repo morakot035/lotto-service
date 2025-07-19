@@ -128,6 +128,17 @@ exports.createLottery = async (req, res) => {
   }
 };
 
+exports.getByBuyer = async (req, res) => {
+  try {
+    const { buyerName } = req.params;
+    const entries = await Entry.find({ buyerName }).sort({ createdAt: -1 });
+    res.json({ data: entries });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+  }
+};
+
 function formatThaiDatetime(date) {
   const d = new Date(date);
   const days = [
