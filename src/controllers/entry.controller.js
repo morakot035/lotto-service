@@ -139,6 +139,15 @@ exports.getByBuyer = async (req, res) => {
   }
 };
 
+exports.deleteEntry = async (req, res) => {
+  try {
+    const result = await Entry.deleteMany({});
+    res.status(200).json({ message: "ลบข้อมูลทั้งหมดสำเร็จ", result });
+  } catch (error) {
+    res.status(500).json({ message: "เกิดข้อผิดพลาด", error });
+  }
+};
+
 function formatThaiDatetime(date) {
   const d = new Date(date);
   const days = [
