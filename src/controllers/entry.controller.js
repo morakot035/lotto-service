@@ -139,6 +139,15 @@ exports.getByBuyer = async (req, res) => {
   }
 };
 
+exports.getAll = async (req, res) => {
+  try {
+    const entries = await Entry.find().sort({ number: 1 }); // เรียงจากน้อยไปมาก (ascending)
+    res.json({ data: entries });
+  } catch (err) {
+    res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+  }
+};
+
 exports.deleteEntry = async (req, res) => {
   try {
     const result = await Entry.deleteMany({});
