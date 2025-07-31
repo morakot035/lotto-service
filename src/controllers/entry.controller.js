@@ -23,6 +23,23 @@ exports.createLottery = async (req, res) => {
 
     const results = [];
 
+    const calcKeepSent = (amount, limit, isBlacklisted = false) => {
+      if (isBlacklisted) {
+        return {
+          total: amount.toString(),
+          kept: "0",
+          sent: amount.toString(),
+        };
+      }
+      const kept = Math.min(amount, limit);
+      const sent = Math.max(amount - limit, 0);
+      return {
+        total: amount.toString(),
+        kept: kept.toString(),
+        sent: sent.toString(),
+      };
+    };
+
     for (const item of entries) {
       const { buyerName, number, top, tod, bottom } = item;
       if (!buyerName || !number) continue;
@@ -41,45 +58,39 @@ exports.createLottery = async (req, res) => {
 
       const limitTod =
         numLength === 3 ? parseFloat(latestConfig.threeDigitTod || "0") : 0;
+
       const limitBottom =
         numLength === 3
           ? parseFloat(latestConfig.threeDigitBottom || "0")
           : parseFloat(latestConfig.twoDigitBottom || "0");
 
-      const calcKeepSent = (amount, limit) => {
-        const kept = Math.min(amount, limit);
-        const sent = Math.max(amount - limit, 0);
-        return {
-          total: amount.toString(),
-          kept: kept.toString(),
-          sent: sent.toString(),
-        };
-      };
-
-      const entryFields = {
-        buyerName,
-        number: trimmedNumber,
-        source: "self",
-      };
-
-      if (topAmount > 0) {
-        entryFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
-          topAmount,
-          limitTop
-        );
-      }
-      if (todAmount > 0 && numLength === 3) {
-        entryFields["tod"] = calcKeepSent(todAmount, limitTod);
-      }
-      if (bottomAmount > 0) {
-        entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
-          bottomAmount,
-          limitBottom
-        );
-      }
-
+      // เตรียม self entry (เฉพาะกรณีไม่ติด blacklist)
       let selfEntry = null;
       if (!isBlacklisted) {
+        const entryFields = {
+          buyerName,
+          number: trimmedNumber,
+          source: "self",
+        };
+
+        if (topAmount > 0) {
+          entryFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
+            topAmount,
+            limitTop
+          );
+        }
+
+        if (todAmount > 0 && numLength === 3) {
+          entryFields["tod"] = calcKeepSent(todAmount, limitTod);
+        }
+
+        if (bottomAmount > 0) {
+          entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
+            bottomAmount,
+            limitBottom
+          );
+        }
+
         selfEntry = new Entry({
           ...entryFields,
           createdAtThai: formatThaiDatetime(new Date()),
@@ -87,6 +98,7 @@ exports.createLottery = async (req, res) => {
         await selfEntry.save();
       }
 
+      // เตรียม dealer entry
       const dealerFields = {
         buyerName,
         number: trimmedNumber,
@@ -98,18 +110,22 @@ exports.createLottery = async (req, res) => {
       if (topAmount > limitTop || isBlacklisted) {
         dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
           topAmount,
-          limitTop
+          limitTop,
+          isBlacklisted
         );
         hasDealer.push(true);
       }
+
       if ((todAmount > limitTod && numLength === 3) || isBlacklisted) {
-        dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
+        dealerFields["tod"] = calcKeepSent(todAmount, limitTod, isBlacklisted);
         hasDealer.push(true);
       }
+
       if (bottomAmount > limitBottom || isBlacklisted) {
         dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
-          limitBottom
+          limitBottom,
+          isBlacklisted
         );
         hasDealer.push(true);
       }
