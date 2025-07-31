@@ -168,6 +168,27 @@ exports.deleteEntry = async (req, res) => {
   }
 };
 
+exports.saveDealerEntries = async (req, res) => {
+  const entries = req.body;
+
+  if (!Array.isArray(entries)) {
+    return res.status(400).json({ message: "Invalid data format" });
+  }
+
+  try {
+    const withSource = entries.map((item) => ({
+      ...item,
+      source: "dealer", // ✅ ระบุว่าฝั่ง dealer
+    }));
+
+    await Entry.insertMany(withSource);
+    return res.status(201).json({ message: "บันทึกฝั่ง dealer สำเร็จ" });
+  } catch (err) {
+    console.error("บันทึก dealer ล้มเหลว", err);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาด" });
+  }
+};
+
 function formatThaiDatetime(date) {
   const d = new Date(date);
   const days = [

@@ -5,6 +5,7 @@ import {
   deleteEntry,
   getAll,
   deletePair,
+  saveDealerEntries,
 } from "../controllers/entry.controller.js";
 import { verifyToken } from "../middlewares/verifyToken.js";
 
@@ -15,4 +16,5 @@ router.get("/by-buyer/:buyerName", verifyToken, getByBuyer);
 router.post("/delete", verifyToken, deleteEntry);
 router.get("/all", verifyToken, getAll);
 router.post("/deletePair", verifyToken, deletePair);
+router.post("/lottery/dealer", verifyToken, saveDealerEntries);
 export default router;
