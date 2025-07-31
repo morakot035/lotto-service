@@ -1,7 +1,7 @@
 const Entry = require("../models/Entry");
 const CutConfig = require("../models/CutConfig");
 const sendError = require("../utils/sendError");
-const blockNumber = require("../models/BlockNumber");
+import BlockNumber from "../models/BlockNumber.js";
 
 exports.createLottery = async (req, res) => {
   try {
@@ -11,6 +11,14 @@ exports.createLottery = async (req, res) => {
     }
 
     const latestConfig = await CutConfig.findOne().sort({ createdAt: -1 });
+    if (!latestConfig) {
+      return sendError(res, "ยังไม่มีการตั้งค่าการตัดเก็บ");
+    }
+
+    const blacklist = await BlockNumber.find().lean();
+    const blacklistNumbers = blacklist
+      .map((b) => b.number?.trim())
+      .filter(Boolean);
 
     const results = [];
 
@@ -18,23 +26,24 @@ exports.createLottery = async (req, res) => {
       const { buyerName, number, top, tod, bottom } = item;
       if (!buyerName || !number) continue;
 
-      const numLength = number.trim().length;
+      const trimmedNumber = number.trim();
+      const isBlacklisted = blacklistNumbers.includes(trimmedNumber);
+      const numLength = trimmedNumber.length;
       const topAmount = parseFloat(top || "0");
       const todAmount = parseFloat(tod || "0");
       const bottomAmount = parseFloat(bottom || "0");
 
       const limitTop =
         numLength === 3
-          ? parseFloat(latestConfig?.threeDigitTop || "0")
-          : parseFloat(latestConfig?.twoDigitTop || "0");
+          ? parseFloat(latestConfig.threeDigitTop || "0")
+          : parseFloat(latestConfig.twoDigitTop || "0");
 
       const limitTod =
-        numLength === 3 ? parseFloat(latestConfig?.threeDigitTod || "0") : 0;
-
+        numLength === 3 ? parseFloat(latestConfig.threeDigitTod || "0") : 0;
       const limitBottom =
         numLength === 3
-          ? parseFloat(latestConfig?.threeDigitBottom || "0")
-          : parseFloat(latestConfig?.twoDigitBottom || "0");
+          ? parseFloat(latestConfig.threeDigitBottom || "0")
+          : parseFloat(latestConfig.twoDigitBottom || "0");
 
       const calcKeepSent = (amount, limit) => {
         const kept = Math.min(amount, limit);
@@ -48,7 +57,7 @@ exports.createLottery = async (req, res) => {
 
       const entryFields = {
         buyerName,
-        number,
+        number: trimmedNumber,
         source: "self",
       };
 
@@ -58,11 +67,9 @@ exports.createLottery = async (req, res) => {
           limitTop
         );
       }
-
       if (todAmount > 0 && numLength === 3) {
         entryFields["tod"] = calcKeepSent(todAmount, limitTod);
       }
-
       if (bottomAmount > 0) {
         entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
@@ -70,32 +77,35 @@ exports.createLottery = async (req, res) => {
         );
       }
 
-      const selfEntry = new Entry({
-        ...entryFields,
-        createdAtThai: formatThaiDatetime(new Date()),
-      });
-      await selfEntry.save();
+      let selfEntry = null;
+      if (!isBlacklisted) {
+        selfEntry = new Entry({
+          ...entryFields,
+          createdAtThai: formatThaiDatetime(new Date()),
+        });
+        await selfEntry.save();
+      }
 
       const dealerFields = {
         buyerName,
-        number,
+        number: trimmedNumber,
         source: "dealer",
       };
 
       const hasDealer = [];
 
-      if (topAmount > limitTop) {
+      if (topAmount > limitTop || isBlacklisted) {
         dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
           topAmount,
           limitTop
         );
         hasDealer.push(true);
       }
-      if (todAmount > limitTod && numLength === 3) {
+      if ((todAmount > limitTod && numLength === 3) || isBlacklisted) {
         dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
         hasDealer.push(true);
       }
-      if (bottomAmount > limitBottom) {
+      if (bottomAmount > limitBottom || isBlacklisted) {
         dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
           limitBottom
@@ -115,7 +125,7 @@ exports.createLottery = async (req, res) => {
       results.push({
         self: selfEntry,
         dealer: dealerEntry,
-        createdAtThai: selfEntry.createdAtThai,
+        createdAtThai: (selfEntry || dealerEntry)?.createdAtThai,
       });
     }
 
@@ -124,7 +134,7 @@ exports.createLottery = async (req, res) => {
       data: results,
     });
   } catch (err) {
-    console.error(err);
+    console.error("❌ ERROR:", err);
     sendError(res, "ไม่สามารถบันทึกข้อมูลหวยได้");
   }
 };
