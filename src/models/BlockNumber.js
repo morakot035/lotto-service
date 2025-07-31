@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
+const mongoose = require("mongoose");
 
 const blockNumberSchema = new mongoose.Schema({
-  number: { type: String, required: true }
+  number: { type: String, required: true },
 });
 
-export default mongoose.model('BlockNumber', blockNumberSchema);
+module.exports = mongoose.model("BlockNumber", blockNumberSchema);
