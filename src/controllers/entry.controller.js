@@ -1,6 +1,7 @@
 const Entry = require("../models/Entry");
 const CutConfig = require("../models/CutConfig");
 const sendError = require("../utils/sendError");
+const blockNumber = require("../models/BlockNumber");
 
 exports.createLottery = async (req, res) => {
   try {
@@ -8,6 +9,9 @@ exports.createLottery = async (req, res) => {
     if (!Array.isArray(entries)) {
       return sendError(res, "ข้อมูลที่ส่งมาไม่ถูกต้อง");
     }
+
+    const blacklist = await blockNumber.find().lean();
+    const blacklistNumbers = blacklist.map((b) => b.number.trim());
 
     const latestConfig = await CutConfig.findOne().sort({ createdAt: -1 });
 
@@ -17,7 +21,10 @@ exports.createLottery = async (req, res) => {
       const { buyerName, number, top, tod, bottom } = item;
       if (!buyerName || !number) continue;
 
-      const numLength = number.trim().length;
+      const trimmedNumber = number.trim();
+      const isBlacklisted = blacklistNumbers.includes(trimmedNumber);
+
+      const numLength = trimmedNumber.length;
       const topAmount = parseFloat(top || "0");
       const todAmount = parseFloat(tod || "0");
       const bottomAmount = parseFloat(bottom || "0");
@@ -45,9 +52,10 @@ exports.createLottery = async (req, res) => {
         };
       };
 
+      // เตรียมข้อมูลสำหรับ self
       const entryFields = {
         buyerName,
-        number,
+        number: trimmedNumber,
         source: "self",
       };
 
@@ -69,32 +77,39 @@ exports.createLottery = async (req, res) => {
         );
       }
 
-      const selfEntry = new Entry({
-        ...entryFields,
-        createdAtThai: formatThaiDatetime(new Date()),
-      });
-      await selfEntry.save();
+      // หากไม่ติด blacklist → สร้าง self
+      let selfEntry = null;
+      if (!isBlacklisted) {
+        selfEntry = new Entry({
+          ...entryFields,
+          createdAtThai: formatThaiDatetime(new Date()),
+        });
+        await selfEntry.save();
+      }
 
+      // เตรียมข้อมูล dealer
       const dealerFields = {
         buyerName,
-        number,
+        number: trimmedNumber,
         source: "dealer",
       };
 
       const hasDealer = [];
 
-      if (topAmount > limitTop) {
+      if (topAmount > limitTop || isBlacklisted) {
         dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
           topAmount,
           limitTop
         );
         hasDealer.push(true);
       }
-      if (todAmount > limitTod && numLength === 3) {
+
+      if ((todAmount > limitTod && numLength === 3) || isBlacklisted) {
         dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
         hasDealer.push(true);
       }
-      if (bottomAmount > limitBottom) {
+
+      if (bottomAmount > limitBottom || isBlacklisted) {
         dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
           limitBottom
@@ -111,10 +126,11 @@ exports.createLottery = async (req, res) => {
         await dealerEntry.save();
       }
 
+      // push ผลลัพธ์
       results.push({
         self: selfEntry,
         dealer: dealerEntry,
-        createdAtThai: selfEntry.createdAtThai,
+        createdAtThai: (selfEntry || dealerEntry)?.createdAtThai,
       });
     }
 
@@ -165,27 +181,6 @@ exports.deleteEntry = async (req, res) => {
     res.status(200).json({ message: "ลบข้อมูลทั้งหมดสำเร็จ", result });
   } catch (error) {
     res.status(500).json({ message: "เกิดข้อผิดพลาด", error });
-  }
-};
-
-exports.saveDealerEntries = async (req, res) => {
-  const entries = req.body;
-
-  if (!Array.isArray(entries)) {
-    return res.status(400).json({ message: "Invalid data format" });
-  }
-
-  try {
-    const withSource = entries.map((item) => ({
-      ...item,
-      source: "dealer", // ✅ ระบุว่าฝั่ง dealer
-    }));
-
-    await Entry.insertMany(withSource);
-    return res.status(201).json({ message: "บันทึกฝั่ง dealer สำเร็จ" });
-  } catch (err) {
-    console.error("บันทึก dealer ล้มเหลว", err);
-    return res.status(500).json({ message: "เกิดข้อผิดพลาด" });
   }
 };
 
