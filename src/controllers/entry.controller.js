@@ -139,6 +139,17 @@ exports.getByBuyer = async (req, res) => {
   }
 };
 
+exports.deletePair = async (req, res) => {
+  const { buyerName, number } = req.body;
+  console.log("yok");
+  try {
+    await Entry.deleteMany({ buyerName, number }); // ลบทั้ง self และ dealer
+    res.status(200).json({ message: "ลบรายการสำเร็จ" });
+  } catch (error) {
+    res.status(500).json({ message: "ลบรายการไม่สำเร็จ", error });
+  }
+};
+
 exports.getAll = async (req, res) => {
   try {
     const entries = await Entry.find().sort({ number: 1 }); // เรียงจากน้อยไปมาก (ascending)
