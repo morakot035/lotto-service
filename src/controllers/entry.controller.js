@@ -10,16 +10,7 @@ exports.createLottery = async (req, res) => {
       return sendError(res, "ข้อมูลที่ส่งมาไม่ถูกต้อง");
     }
 
-    const blacklist = await blockNumber.find().lean();
-    const blacklistNumbers = blacklist.map((b) => b.number.trim());
-
     const latestConfig = await CutConfig.findOne().sort({ createdAt: -1 });
-    if (!latestConfig) return sendError(res, "ยังไม่มีการตั้งค่า limit");
-
-    const safeParse = (val) => {
-      const num = parseFloat(val);
-      return isNaN(num) ? 0 : num;
-    };
 
     const results = [];
 
@@ -27,26 +18,23 @@ exports.createLottery = async (req, res) => {
       const { buyerName, number, top, tod, bottom } = item;
       if (!buyerName || !number) continue;
 
-      const trimmedNumber = number.trim();
-      const isBlacklisted = blacklistNumbers.includes(trimmedNumber);
-      const numLength = trimmedNumber.length;
-
-      const topAmount = safeParse(top);
-      const todAmount = safeParse(tod);
-      const bottomAmount = safeParse(bottom);
+      const numLength = number.trim().length;
+      const topAmount = parseFloat(top || "0");
+      const todAmount = parseFloat(tod || "0");
+      const bottomAmount = parseFloat(bottom || "0");
 
       const limitTop =
         numLength === 3
-          ? safeParse(latestConfig.threeDigitTop)
-          : safeParse(latestConfig.twoDigitTop);
+          ? parseFloat(latestConfig?.threeDigitTop || "0")
+          : parseFloat(latestConfig?.twoDigitTop || "0");
 
       const limitTod =
-        numLength === 3 ? safeParse(latestConfig.threeDigitTod) : 0;
+        numLength === 3 ? parseFloat(latestConfig?.threeDigitTod || "0") : 0;
 
       const limitBottom =
         numLength === 3
-          ? safeParse(latestConfig.threeDigitBottom)
-          : safeParse(latestConfig.twoDigitBottom);
+          ? parseFloat(latestConfig?.threeDigitBottom || "0")
+          : parseFloat(latestConfig?.twoDigitBottom || "0");
 
       const calcKeepSent = (amount, limit) => {
         const kept = Math.min(amount, limit);
@@ -58,56 +46,56 @@ exports.createLottery = async (req, res) => {
         };
       };
 
-      // เตรียม self
       const entryFields = {
         buyerName,
-        number: trimmedNumber,
+        number,
         source: "self",
       };
 
-      if (topAmount > 0)
+      if (topAmount > 0) {
         entryFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
           topAmount,
           limitTop
         );
-      if (todAmount > 0 && numLength === 3)
+      }
+
+      if (todAmount > 0 && numLength === 3) {
         entryFields["tod"] = calcKeepSent(todAmount, limitTod);
-      if (bottomAmount > 0)
+      }
+
+      if (bottomAmount > 0) {
         entryFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
           limitBottom
         );
-
-      let selfEntry = null;
-      if (!isBlacklisted) {
-        selfEntry = new Entry({
-          ...entryFields,
-          createdAtThai: formatThaiDatetime(new Date()),
-        });
-        await selfEntry.save();
       }
 
-      // เตรียม dealer
+      const selfEntry = new Entry({
+        ...entryFields,
+        createdAtThai: formatThaiDatetime(new Date()),
+      });
+      await selfEntry.save();
+
       const dealerFields = {
         buyerName,
-        number: trimmedNumber,
+        number,
         source: "dealer",
       };
 
       const hasDealer = [];
 
-      if (topAmount > limitTop || isBlacklisted) {
+      if (topAmount > limitTop) {
         dealerFields[numLength === 3 ? "top" : "top2"] = calcKeepSent(
           topAmount,
           limitTop
         );
         hasDealer.push(true);
       }
-      if ((todAmount > limitTod && numLength === 3) || isBlacklisted) {
+      if (todAmount > limitTod && numLength === 3) {
         dealerFields["tod"] = calcKeepSent(todAmount, limitTod);
         hasDealer.push(true);
       }
-      if (bottomAmount > limitBottom || isBlacklisted) {
+      if (bottomAmount > limitBottom) {
         dealerFields[numLength === 3 ? "bottom3" : "bottom2"] = calcKeepSent(
           bottomAmount,
           limitBottom
@@ -127,7 +115,7 @@ exports.createLottery = async (req, res) => {
       results.push({
         self: selfEntry,
         dealer: dealerEntry,
-        createdAtThai: (selfEntry || dealerEntry)?.createdAtThai,
+        createdAtThai: selfEntry.createdAtThai,
       });
     }
 
@@ -136,7 +124,7 @@ exports.createLottery = async (req, res) => {
       data: results,
     });
   } catch (err) {
-    console.error("⛔️ ERROR", err);
+    console.error(err);
     sendError(res, "ไม่สามารถบันทึกข้อมูลหวยได้");
   }
 };
@@ -154,7 +142,6 @@ exports.getByBuyer = async (req, res) => {
 
 exports.deletePair = async (req, res) => {
   const { buyerName, number } = req.body;
-  console.log("yok");
   try {
     await Entry.deleteMany({ buyerName, number }); // ลบทั้ง self และ dealer
     res.status(200).json({ message: "ลบรายการสำเร็จ" });
