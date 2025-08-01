@@ -106,8 +106,13 @@ router.get("/check-winners", async (req, res) => {
         matchedTypes.push({ type: "3 ตัวบน", amount: top });
       }
 
-      // ✅ โต๊ด (เลข 3 ตัวสลับกัน)
-      if (tod && isTod(number, firstPrize.slice(-3))) {
+      // ✅ โต๊ด (เลข 3 ตัวสลับกัน หน้า)
+      if (tod && isTod(number, threeDigitFront.slice(-3))) {
+        matchedTypes.push({ type: "โต๊ด", amount: tod });
+      }
+
+      // ✅ โต๊ด (เลข 3 ตัวสลับกัน หลัง)
+      if (tod && isTod(number, threeDigitBack.slice(-3))) {
         matchedTypes.push({ type: "โต๊ด", amount: tod });
       }
 
