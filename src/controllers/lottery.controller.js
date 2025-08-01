@@ -51,7 +51,8 @@ router.post("/result", async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "เกิดข้อผิดพลาดในการดึงข้อมูลหวย",
+      message:
+        "สำนักงานสลากกินแบ่งรัฐบาลกำลังจะออกรางวััลเร็วๆนี้ โปรดรอสักครู่...",
     });
   }
 });
