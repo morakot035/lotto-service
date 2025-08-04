@@ -114,7 +114,7 @@ router.post("/check-winners", async (req, res) => {
 
       // ✅ 3 ตัวหน้า (ตรงเท่านั้น)
       if (threeDigitFront.includes(number) && top) {
-        matchedTypes.push({ type: "3 ตัวหน้า", amount: top });
+        matchedTypes.push({ type: "3 ตัวล่าง", amount: top });
       }
 
       // ✅ 3 ตัวล่าง (ตรงเท่านั้น)
