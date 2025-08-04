@@ -57,7 +57,7 @@ router.post("/result", async (req, res) => {
   }
 });
 
-router.get("/check-winners", async (req, res) => {
+router.post("/check-winners", async (req, res) => {
   try {
     const now = dayjs();
     const day = now.date();
@@ -65,14 +65,17 @@ router.get("/check-winners", async (req, res) => {
     const month = now.format("MM");
     const year = now.format("YYYY");
 
+    const { number } = req.body;
+    if (!number) {
+      return res
+        .status(400)
+        .json({ success: false, message: "กรุณาระบุเลขที่ต้องการค้นหา" });
+    }
+
     // ดึงผลรางวัลจาก GLO
     const response = await axios.post(
       "https://www.glo.or.th/api/checking/getLotteryResult",
-      {
-        date,
-        month,
-        year,
-      }
+      { date, month, year }
     );
 
     const data = response.data.response.result.data;
@@ -81,14 +84,12 @@ router.get("/check-winners", async (req, res) => {
     const threeDigitFront = data.last3f.number.map((n) => n.value);
     const threeDigitBack = data.last3b.number.map((n) => n.value);
 
-    // ดึงข้อมูลหวยทั้งหมดจาก database
-    const entries = await Entry.find();
+    // ค้นหาเลขเฉพาะที่อยู่ในฝั่ง self
+    const entries = await Entry.find({ number, source: "self" });
     const winners = [];
 
     for (const entry of entries) {
-      const { buyerName, number, top2, bottom2, top, tod, bottom3, source } =
-        entry;
-
+      const { buyerName, top2, bottom2, top, tod, bottom3 } = entry;
       const matchedTypes = [];
 
       // ✅ 2 ตัวบน
@@ -106,22 +107,17 @@ router.get("/check-winners", async (req, res) => {
         matchedTypes.push({ type: "3 ตัวบน", amount: top });
       }
 
-      // ✅ โต๊ด (เลข 3 ตัวสลับกัน หน้า)
-      if (tod && threeDigitFront.some((front) => isTod(number, front))) {
+      // ✅ โต๊ด (เลขสลับ 3 ตัวบน)
+      if (tod && isTod(number, firstPrize.slice(-3))) {
         matchedTypes.push({ type: "โต๊ด", amount: tod });
       }
 
-      // ✅ โต๊ด (เลข 3 ตัวสลับกัน หลัง)
-      if (tod && threeDigitBack.some((front) => isTod(number, front))) {
-        matchedTypes.push({ type: "โต๊ด", amount: tod });
-      }
-
-      // ✅ 3 ตัวหน้า
+      // ✅ 3 ตัวหน้า (ตรงเท่านั้น)
       if (threeDigitFront.includes(number) && top) {
         matchedTypes.push({ type: "3 ตัวหน้า", amount: top });
       }
 
-      // ✅ 3 ตัวท้าย
+      // ✅ 3 ตัวล่าง (ตรงเท่านั้น)
       if (threeDigitBack.includes(number) && bottom3) {
         matchedTypes.push({ type: "3 ตัวล่าง", amount: bottom3 });
       }
@@ -130,7 +126,6 @@ router.get("/check-winners", async (req, res) => {
         winners.push({
           name: buyerName,
           number,
-          source,
           matchedTypes,
         });
       }
@@ -142,8 +137,10 @@ router.get("/check-winners", async (req, res) => {
       winners,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: "เกิดข้อผิดพลาด" });
+    console.error("เกิดข้อผิดพลาด", err);
+    res
+      .status(500)
+      .json({ success: false, message: "เกิดข้อผิดพลาดในฝั่งเซิร์ฟเวอร์" });
   }
 });
 
