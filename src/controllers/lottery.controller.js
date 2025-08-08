@@ -84,8 +84,16 @@ router.post("/check-winners", async (req, res) => {
     const threeDigitFront = data.last3f.number.map((n) => n.value);
     const threeDigitBack = data.last3b.number.map((n) => n.value);
 
+    const top3Digits = firstPrize.slice(-3); // เช่น 123852 → 852
+    const todVariants = getTodVariants(top3Digits); // ["852", "258", "285", ...]
+
     // ค้นหาเลขเฉพาะที่อยู่ในฝั่ง self
     const entries = await Entry.find({ number, source: "self" });
+    const checktod = await Entry.find({
+      number: { $in: todVariants },
+      source: "self",
+    });
+
     const winners = [];
 
     for (const entry of entries) {
@@ -131,6 +139,27 @@ router.post("/check-winners", async (req, res) => {
       }
     }
 
+    // ✅ คนที่ "ถูกโต๊ด" จากเลข 6 กลับ
+    for (const entry of checktod) {
+      const { buyerName, number: entryNumber, tod } = entry;
+
+      // ถ้าเลขตรง 3 ตัวบนอยู่แล้ว ไม่ต้องนับซ้ำ
+      if (entryNumber === firstPrize.slice(-3)) continue;
+
+      if (tod && isTod(number, firstPrize.slice(-3))) {
+        winners.push({
+          name: buyerName,
+          number: entryNumber,
+          matchedTypes: [
+            {
+              type: "โต๊ด",
+              amount: tod,
+            },
+          ],
+        });
+      }
+    }
+
     res.json({
       success: true,
       date: { date, month, year },
@@ -148,6 +177,23 @@ router.post("/check-winners", async (req, res) => {
 function isTod(input, target) {
   if (input.length !== 3 || target.length !== 3) return false;
   return input.split("").sort().join("") === target.split("").sort().join("");
+}
+
+// ✅ สร้างเลข 6 กลับ
+function getTodVariants(number) {
+  if (number.length !== 3) return [];
+  const variants = new Set();
+  const chars = number.split("");
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (i === j) continue;
+      for (let k = 0; k < 3; k++) {
+        if (k === i || k === j) continue;
+        variants.add(chars[i] + chars[j] + chars[k]);
+      }
+    }
+  }
+  return Array.from(variants);
 }
 
 export default router;
