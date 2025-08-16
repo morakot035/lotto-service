@@ -5,6 +5,6 @@ import { verifyToken } from "../middlewares/verifyToken.js";
 const router = express.Router();
 
 // ผูก controller กับ route
-router.use("/", verifyToken, lotteryController);
+router.use("/", lotteryController);
 
 export default router;
