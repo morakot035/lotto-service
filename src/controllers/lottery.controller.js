@@ -110,11 +110,12 @@ router.post("/result", async (req, res) => {
 
 router.post("/check-winners", async (req, res) => {
   try {
-    const now = dayjs();
-    const day = now.date();
-    const date = day >= 16 ? "16" : "01";
-    const month = now.format("MM");
-    const year = now.format("YYYY");
+    // const now = dayjs();
+    // const day = now.date();
+    // const date = day >= 16 ? "16" : "01";
+    // const month = now.format("MM");
+    // const year = now.format("YYYY");
+    const { date, month, year } = getLatestDrawDate(dayjs());
 
     const { number } = req.body;
     if (!number) {
