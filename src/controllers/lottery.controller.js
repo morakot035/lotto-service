@@ -2,25 +2,69 @@ import express from "express";
 import axios from "axios";
 import dayjs from "dayjs";
 import Entry from "../models/Entry.js";
+import Holidays from "date-holidays";
+
+const hd = new Holidays("TH");
+
+// เลื่อนวันออกผลไปวันถัดไป ถ้าวันนั้นเป็นวันหยุด
+function shiftIfHoliday(d) {
+  let x = dayjs(d);
+  // date-holidays ใช้ Date object
+  while (hd.isHoliday(x.toDate())) {
+    x = x.add(1, "day");
+  }
+  return x;
+}
+
+// คืนค่า { date, month, year } ของ “งวดล่าสุด” ณ เวลานั้น
+export function getLatestDrawDate(now = dayjs()) {
+  // งวดของเดือนนี้ (1 และ 16) + เลื่อนถ้าตรงวันหยุด
+  const firstBase = now.date(1);
+  const sixteenthBase = now.date(16);
+
+  const firstDraw = shiftIfHoliday(firstBase);
+  const sixteenthDraw = shiftIfHoliday(sixteenthBase);
+
+  // ถ้ายังไม่ถึงงวดแรกของเดือนนี้ → ใช้งวดก่อน (เดือนก่อนวันที่ 16)
+  if (now.isBefore(firstDraw, "day") || now.isBefore(firstDraw)) {
+    const prevMonth = now.subtract(1, "month");
+    const prevSixteenth = shiftIfHoliday(prevMonth.date(16));
+    return {
+      date: prevSixteenth.format("DD"),
+      month: prevSixteenth.format("MM"),
+      year: prevSixteenth.format("YYYY"),
+    };
+  }
+
+  // ถ้าถึงงวดแรกแล้ว แต่ยังไม่ถึงงวด 16 → ใช้งวดแรก
+  if (now.isBefore(sixteenthDraw, "day") || now.isBefore(sixteenthDraw)) {
+    return {
+      date: firstDraw.format("DD"),
+      month: firstDraw.format("MM"),
+      year: firstDraw.format("YYYY"),
+    };
+  }
+
+  // ถ้าถึงงวด 16 แล้ว → ใช้งวด 16
+  return {
+    date: sixteenthDraw.format("DD"),
+    month: sixteenthDraw.format("MM"),
+    year: sixteenthDraw.format("YYYY"),
+  };
+}
 
 const router = express.Router();
 
 router.post("/result", async (req, res) => {
   try {
     // ✅ หาวันที่งวดล่าสุด (1 หรือ 16)
-    const now = dayjs();
-    const day = now.date();
+    // const now = dayjs();
+    // const day = now.date();
 
-    let date;
-    if (day >= 16) {
-      date = "16";
-    } else if (day <= 2) {
-      date = "02";
-    } else {
-      date = "01";
-    }
-    const month = now.format("MM");
-    const year = now.format("YYYY");
+    // const date = day >= 16 ? "16" : "01";
+    // const month = now.format("MM");
+    // const year = now.format("YYYY");
+    const { date, month, year } = getLatestDrawDate(dayjs());
 
     // ✅ เรียก API GLO
     const response = await axios.post(
