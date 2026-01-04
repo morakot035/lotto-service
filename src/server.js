@@ -17,8 +17,12 @@ const app = express();
 app.use(express.json());
 app.use(
   cors({
-    origin: "*", // หรือใส่ origin ของ frontend ถ้ามี
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: [
+      "http://localhost:4000",
+      "https://lotto-app-one.vercel.app",
+      "https://lotto-service.onrender.com",
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
