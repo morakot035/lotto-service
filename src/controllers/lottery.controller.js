@@ -58,13 +58,13 @@ const router = express.Router();
 router.post("/result", async (req, res) => {
   try {
     // ✅ หาวันที่งวดล่าสุด (1 หรือ 16)
-    const now = dayjs();
-    const day = now.date();
+    // const now = dayjs();
+    // const day = now.date();
 
-    const date = day >= 16 ? "16" : "01";
-    const month = now.format("MM");
-    const year = now.format("YYYY");
-    // const { date, month, year } = getLatestDrawDate(dayjs());
+    // const date = day >= 16 ? "16" : "01";
+    // const month = now.format("MM");
+    // const year = now.format("YYYY");
+    const { date, month, year } = getLatestDrawDate(dayjs());
 
     // ✅ เรียก API GLO
     const response = await axios.post(
@@ -110,12 +110,12 @@ router.post("/result", async (req, res) => {
 
 router.post("/check-winners", async (req, res) => {
   try {
-    const now = dayjs();
-    const day = now.date();
-    const date = day >= 16 ? "16" : "01";
-    const month = now.format("MM");
-    const year = now.format("YYYY");
-    // const { date, month, year } = getLatestDrawDate(dayjs());
+    // const now = dayjs();
+    // const day = now.date();
+    // const date = day >= 16 ? "16" : "01";
+    // const month = now.format("MM");
+    // const year = now.format("YYYY");
+    const { date, month, year } = getLatestDrawDate(dayjs());
 
     const { number } = req.body;
     if (!number) {
