@@ -11,7 +11,14 @@ router.post("/result", async (req, res) => {
     const now = dayjs();
     const day = now.date();
 
-    const date = day >= 16 ? "16" : "01"; // ถ้าเลย 16 ให้ใช้ 16
+    let date;
+    if (day >= 16) {
+      date = "16";
+    } else if (day <= 2) {
+      date = "02";
+    } else {
+      date = "01";
+    }
     const month = now.format("MM");
     const year = now.format("YYYY");
 
