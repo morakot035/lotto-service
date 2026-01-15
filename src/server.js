@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "http://localhost:4000",
+      "http://localhost:3000",
       "https://lotto-app-one.vercel.app",
       "https://lotto-service.onrender.com",
     ],
